@@ -203,6 +203,19 @@ optimization; a binary built that way may fail on another processor.
 emulation, fallback, diagnostic reports and future extension points. Historical
 rates above are workload-specific; they are not hardware-independent guarantees.
 
+## Credits
+
+Built on ideas and tooling from [keyhunt](https://github.com/albertobsd/keyhunt) by Luis
+Alberto (albertobsd), used under the MIT License — Copyright (c) 2020 Luis Alberto.
+
+## Support
+
+Self-funded, spare-time work. A GPU port is the next big step and needs hardware. If this is
+useful to you and you'd like to help, Bitcoin donations are welcome, with no promise of
+anything in return:
+
+`bc1qhsq406jt6ghkzmhpnqe4r2s639t6mtrhj6zx03`
+
 ## License
 
 This project is open source under the [MIT License](LICENSE).

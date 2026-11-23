@@ -250,6 +250,19 @@ A [documentação de compatibilidade](docs/CPU_COMPATIBILITY.md) explica CPUs no
 emulação, seleção de instruções, diagnósticos e pontos de extensão. As taxas
 históricas acima dependem da carga e do hardware utilizados.
 
+## Créditos
+
+Construído sobre ideias e ferramentas do [keyhunt](https://github.com/albertobsd/keyhunt),
+de Luis Alberto (albertobsd), usado sob a licença MIT — Copyright (c) 2020 Luis Alberto.
+
+## Apoie
+
+Trabalho de tempo livre, bancado por mim. A versão GPU é o próximo passo grande e precisa de
+hardware. Se isto te for útil e quiser ajudar, doações em Bitcoin são bem-vindas, sem
+promessa de retorno:
+
+`bc1qhsq406jt6ghkzmhpnqe4r2s639t6mtrhj6zx03`
+
 ## Licença
 
 O projeto é open source sob a [licença MIT](LICENSE).
