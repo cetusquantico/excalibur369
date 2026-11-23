@@ -1,0 +1,2 @@
+# Independent oracle used by release tests; not a runtime dependency.
+coincurve==21.0.0

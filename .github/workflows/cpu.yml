@@ -1,0 +1,105 @@
+name: CPU validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  correctness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        field: [5x52, 4x64]
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tests/requirements.txt
+      - name: Configure
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DEX369_FIELD=${{ matrix.field }}
+          -DEX369_NATIVE=OFF -DEX369_REQUIRE_REFERENCE=ON
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure --timeout 120
+      - name: Check generated source
+        run: |
+          python tools/gen_ripemd_core.py
+          git diff --exit-code -- src/hash/simd/ripemd160_core.inc
+
+  scalar_only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tests/requirements.txt
+      - run: cmake -S . -B build -DEX369_NATIVE=OFF -DEX369_SIMD=OFF -DEX369_REQUIRE_REFERENCE=ON
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure --timeout 120
+
+  emulated_cpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cpu: [qemu64, Nehalem, Haswell-noTSX, EPYC-v4, EPYC-Genoa-v1, SapphireRapids-v1]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-user
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tests/requirements.txt
+      - run: cmake -S . -B build -DEX369_NATIVE=OFF
+      - run: cmake --build build --parallel 2
+      - name: Validate instruction paths under emulation
+        env:
+          CPU_MODEL: ${{ matrix.cpu }}
+        run: |
+          qemu-x86_64 -cpu "$CPU_MODEL" build/kh71 --self-test
+          qemu-x86_64 -cpu "$CPU_MODEL" build/tests/test_hash_simd
+          qemu-x86_64 -cpu "$CPU_MODEL" build/tests/test_cpu
+          qemu-x86_64 -cpu "$CPU_MODEL" build/tests/test_reverse
+          python tests/test_public_puzzle39.py build/kh71 --qemu-cpu "$CPU_MODEL"
+          qemu-x86_64 -cpu "$CPU_MODEL" build/kh71 --cpu-info > cpu-info.txt
+          case "$CPU_MODEL" in
+            qemu64) grep -F 'simd backend selected: scalar' cpu-info.txt ;;
+            Nehalem) grep -F 'simd backend selected: sse-x4' cpu-info.txt ;;
+            *) grep -F 'simd backend selected: avx2-x8' cpu-info.txt ;;
+          esac
+  sanitizers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tests/requirements.txt
+      - run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+          -DEX369_NATIVE=OFF -DEX369_REQUIRE_REFERENCE=ON
+          -DCMAKE_CXX_FLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all'
+          -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure --timeout 120
